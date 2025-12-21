@@ -406,6 +406,7 @@
         function addPhotoToScene(texture) {
             // 拍立得风格相框
             const planeGeo = new THREE.PlaneGeometry(3, 3.5);
+            // 改为 FrontSide，配合 lookAt 逻辑，确保只渲染正面或双面更可控
             const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
             const mesh = new THREE.Mesh(planeGeo, mat);
 
@@ -418,15 +419,16 @@
 
             const angle = Math.random() * Math.PI * 2;
             const y = (Math.random() * 0.8 - 0.4) * CONFIG.treeHeight; 
-            const r = ((1 - (y + CONFIG.treeHeight/2)/CONFIG.treeHeight) * CONFIG.treeRadius) + 2.0;
+            // 稍微增加一点半径偏移，防止旋转面向相机时与树叶穿插
+            const r = ((1 - (y + CONFIG.treeHeight/2)/CONFIG.treeHeight) * CONFIG.treeRadius) + 2.5;
             
             mesh.userData = {
                 targetPos: new THREE.Vector3(Math.cos(angle)*r, y, Math.sin(angle)*r),
                 chaosPos: new THREE.Vector3((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*20),
             };
             mesh.position.copy(mesh.userData.targetPos);
-            mesh.lookAt(0, y, 0); 
-            mesh.rotateY(Math.PI); 
+            // 初始直接面向相机位置
+            mesh.lookAt(camera.position);
 
             photoGroup.add(mesh);
         }
@@ -484,17 +486,21 @@
 
             photoGroup.children.forEach(photo => {
                 if (activePhoto === photo) return;
+                
                 let target;
                 if (state === 'FORMED') {
                     target = photo.userData.targetPos;
-                    const lookPos = new THREE.Vector3(0, photo.position.y, 0);
-                    photo.lookAt(lookPos);
-                    photo.rotateY(Math.PI); 
+                    // 修改：FORMED 状态下，只进行位置移动，朝向强制由下方 lookAt 控制
                 } else {
                     target = photo.userData.chaosPos;
-                    photo.lookAt(camera.position);
                 }
+                
+                // 移动位置
                 photo.position.lerp(target, 0.04);
+                
+                // 核心修改：无论何时，强制让照片正面朝向相机
+                // 这样无论照片在树的哪一侧，都不会显示背面
+                photo.lookAt(camera.position);
             });
 
             // 相机视差
