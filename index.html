@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luxury Gesture Christmas Tree</title>
+    <title>乐乐大王专属圣诞树</title>
     <style>
         /* --- 全局样式：极简暗黑奢华风 --- */
         body, html { margin: 0; padding: 0; overflow: hidden; background-color: #050505; font-family: 'Helvetica Neue', Arial, sans-serif; }
@@ -57,7 +57,7 @@
         }
         .btn:hover { background: #FFD700; color: #800020; box-shadow: 0 0 15px #FFD700; }
 
-        /* --- 新增：摄像头实时预览窗口样式 --- */
+        /* 摄像头实时预览窗口样式 */
         #cam-container {
             position: absolute; bottom: 20px; right: 20px;
             z-index: 20;
@@ -96,8 +96,10 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 100;
             display: flex; justify-content: center; align-items: center;
-            color: #FFD700; font-size: 2rem; letter-spacing: 5px;
+            flex-direction: column;
+            color: #FFD700; font-size: 1.5rem; letter-spacing: 5px;
             transition: opacity 1s;
+            text-align: center;
         }
     </style>
     
@@ -120,11 +122,13 @@
 </head>
 <body>
 
-    <div id="loading">INITIALIZING LUXURY EXPERIENCE...</div>
+    <div id="loading">
+        <div>INITIALIZING...</div>
+        <div style="font-size: 1rem; margin-top: 10px; color: #fff;">FOR LELE KING</div>
+    </div>
 
     <div id="canvas-container"></div>
 
-    <!-- 修改：带装饰框的摄像头预览 -->
     <div id="cam-container">
         <div class="cam-label">GESTURE INPUT</div>
         <video id="video-preview" playsinline></video>
@@ -132,16 +136,16 @@
 
     <div id="ui-layer">
         <div class="hud-panel">
-            <h1>Gesture Christmas</h1>
+            <h1>For LeLe King</h1>
             <div style="display: flex; align-items: center; margin-bottom: 10px;">
                 <span id="cam-status" class="status-indicator"></span>
                 <span id="status-text">Waiting for Camera...</span>
             </div>
             <p>✊ <b>Fist:</b> Assemble Tree</p>
             <p>✋ <b>Open:</b> Unleash Chaos</p>
-            <p>👌 <b>Pinch:</b> Grab & Zoom Photo</p>
+            <p>👌 <b>Pinch:</b> Read Message</p>
             <label class="btn">
-                Upload Photos
+                Add Photos
                 <input type="file" id="file-input" multiple accept="image/*">
             </label>
         </div>
@@ -157,14 +161,14 @@
         // --- 配置常量 ---
         const CONFIG = {
             colors: {
-                green: 0x004225, // 哑光绿
-                gold: 0xFFD700,  // 金属金
-                red: 0x800020,   // 圣诞红 (Burgundy)
-                silver: 0xC0C0C0, // 银色
+                green: 0x004225, 
+                gold: 0xFFD700, 
+                red: 0x800020,   
+                silver: 0xC0C0C0, 
                 white: 0xFFFFFF,
-                brightRed: 0xFF0000 // 糖果色
+                brightRed: 0xFF0000 
             },
-            particleCount: 1600, // 粒子数量
+            particleCount: 1600,
             treeHeight: 16,
             treeRadius: 6.5,
             cameraZ: 25
@@ -173,54 +177,65 @@
         // --- 全局变量 ---
         let scene, camera, renderer, composer;
         let particles, photoGroup;
-        let state = 'FORMED'; // FORMED, SCATTERED, ZOOMED
+        let state = 'FORMED'; 
         let handPos = { x: 0, y: 0 }; 
         let isPinching = false;
         let clock = new THREE.Clock();
         
-        // 用于照片放大
         let raycaster = new THREE.Raycaster();
         let activePhoto = null;
         let originalPhotoPos = new THREE.Vector3();
 
+        // 专属情话列表 (支持换行符 \n)
+        const MESSAGES = [
+            "乐乐大王\n圣诞节快乐！",
+            "小韬\n喜欢大王！",
+            "大王\n天天开心！",
+            "大王是最厉害\n最厉害的大王！",
+            "小韬\n永远保护大王！",
+            "小韬\n永远支持你！",
+            "大王放心，\n有韬在！",
+            "大王\n亲亲！",
+            "记得\n想小韬！",
+            "小韬\n永远爱你！",
+            "萌萌\n大王！",
+            "可爱\n大王！",
+            "最喜欢小韬\n的大王！",
+            "大王\n明天见！",
+            "大王\n好好吃饭！",
+            "小韬\n一直都在！",
+            "大王一直\n都很厉害！",
+            "大王\n辛苦啦！",
+            "大王做的\n都很有意义！",
+            "大王不要给自己\n太大压力啦~",
+            "小韬一直一直\n都会支持大王的！",
+            "大王累了就\n休息一下没关系的！",
+            "小韬\n想你啦！"
+        ];
+
         // 材质库
         const materials = {
             gold: new THREE.MeshStandardMaterial({
-                color: CONFIG.colors.gold,
-                metalness: 1.0,
-                roughness: 0.15,
-                emissive: 0xaa6600,
-                emissiveIntensity: 0.2
+                color: CONFIG.colors.gold, metalness: 1.0, roughness: 0.15, emissive: 0xaa6600, emissiveIntensity: 0.2
             }),
             red: new THREE.MeshStandardMaterial({
-                color: CONFIG.colors.red,
-                metalness: 0.4,
-                roughness: 0.5,
+                color: CONFIG.colors.red, metalness: 0.4, roughness: 0.5,
             }),
             green: new THREE.MeshStandardMaterial({
-                color: CONFIG.colors.green,
-                metalness: 0.2,
-                roughness: 0.8,
+                color: CONFIG.colors.green, metalness: 0.2, roughness: 0.8,
             }),
             silver: new THREE.MeshStandardMaterial({
-                color: CONFIG.colors.silver,
-                metalness: 0.9,
-                roughness: 0.2,
+                color: CONFIG.colors.silver, metalness: 0.9, roughness: 0.2,
             }),
             candyWhite: new THREE.MeshStandardMaterial({
-                color: CONFIG.colors.white,
-                metalness: 0.1,
-                roughness: 0.3,
-                emissive: 0x333333,
+                color: CONFIG.colors.white, metalness: 0.1, roughness: 0.3, emissive: 0x333333,
             }),
             candyRed: new THREE.MeshStandardMaterial({
-                color: CONFIG.colors.brightRed,
-                metalness: 0.1,
-                roughness: 0.3,
+                color: CONFIG.colors.brightRed, metalness: 0.1, roughness: 0.3,
             })
         };
 
-        // --- 1. 初始化 Three.js 场景 ---
+        // --- 1. 初始化 Three.js ---
         function initThree() {
             const container = document.getElementById('canvas-container');
             
@@ -237,10 +252,9 @@
             renderer.toneMappingExposure = 1.1;
             container.appendChild(renderer.domElement);
 
-            // 灯光系统
+            // 灯光
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
             scene.add(ambientLight);
-
             const spotLight = new THREE.SpotLight(0xffeebb, 150);
             spotLight.position.set(15, 25, 20);
             spotLight.angle = 0.6;
@@ -248,22 +262,16 @@
             spotLight.decay = 2;
             spotLight.distance = 100;
             scene.add(spotLight);
-
-            const backLight = new THREE.PointLight(CONFIG.colors.red, 50, 30);
-            backLight.position.set(-10, 5, -10);
-            scene.add(backLight);
-
             const innerLight = new THREE.PointLight(CONFIG.colors.gold, 60, 20);
             innerLight.position.set(0, 2, 0);
             scene.add(innerLight);
 
-            // 后期处理 (Bloom)
+            // 后期
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
             bloomPass.threshold = 0.3;
             bloomPass.strength = 1.0;
             bloomPass.radius = 0.6;
-
             const outputPass = new OutputPass();
 
             composer = new EffectComposer(renderer);
@@ -272,7 +280,8 @@
             composer.addPass(outputPass);
 
             createParticles();
-            createPhotoPlaceholders();
+            createPhotoGroup(); 
+            loadMessagesAsPhotos(); // 加载文字卡片
 
             window.addEventListener('resize', onWindowResize);
             
@@ -282,58 +291,47 @@
             }, 1500);
         }
 
-        // --- 2. 创建粒子与几何 ---
+        // --- 2. 创建物体 ---
         function createParticles() {
-            // 定义各种形状的 Geometry
-            const geoSphere = new THREE.SphereGeometry(0.18, 16, 16); // 装饰球
-            const geoBox = new THREE.BoxGeometry(0.3, 0.3, 0.3);     // 礼物盒
-            const geoCane = new THREE.CylinderGeometry(0.04, 0.04, 0.6, 8); // 糖果棍 (简化为长条)
-            const geoTiny = new THREE.DodecahedronGeometry(0.1);     // 闪光微粒
+            const geoSphere = new THREE.SphereGeometry(0.18, 16, 16);
+            const geoBox = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const geoCane = new THREE.CylinderGeometry(0.04, 0.04, 0.6, 8);
+            const geoTiny = new THREE.DodecahedronGeometry(0.1);
 
             particles = new THREE.Group();
-            
             const count = CONFIG.particleCount;
             
             for (let i = 0; i < count; i++) {
                 let mesh;
                 const rand = Math.random();
 
-                // 随机分配形状和材质
                 if (rand > 0.85) {
-                    // 15% 礼物盒 (金/红/绿)
                     const mat = Math.random() > 0.5 ? materials.red : (Math.random() > 0.5 ? materials.gold : materials.green);
                     mesh = new THREE.Mesh(geoBox, mat);
-                    mesh.scale.set(1.2, 1.2, 1.2); // 盒子稍微大一点
+                    mesh.scale.set(1.2, 1.2, 1.2);
                 } else if (rand > 0.75) {
-                    // 10% 糖果棍 (白/红)
                     const mat = Math.random() > 0.5 ? materials.candyWhite : materials.candyRed;
                     mesh = new THREE.Mesh(geoCane, mat);
                 } else if (rand > 0.4) {
-                    // 35% 装饰球 (金/银/红)
                     let mat;
                     const r = Math.random();
                     if(r > 0.6) mat = materials.gold;
                     else if(r > 0.3) mat = materials.silver;
                     else mat = materials.red;
-                    
                     mesh = new THREE.Mesh(geoSphere, mat);
                 } else {
-                    // 40% 基础填充微粒 (绿/金)
                     mesh = new THREE.Mesh(geoTiny, Math.random() > 0.3 ? materials.green : materials.gold);
                 }
                 
-                // 计算 树形态 (Formed) 坐标
                 const t = i / count; 
-                const angle = t * Math.PI * 40; // 增加螺旋圈数
+                const angle = t * Math.PI * 40;
                 const y = (t * 2 - 1) * (CONFIG.treeHeight / 2); 
                 const r = (1 - t) * CONFIG.treeRadius; 
                 
-                // 给树的形状加一点随机抖动，显得更自然
                 const jitter = 0.2;
                 const tx = Math.cos(angle) * r + (Math.random()-0.5)*jitter;
                 const tz = Math.sin(angle) * r + (Math.random()-0.5)*jitter;
                 
-                // 存储属性
                 mesh.userData = {
                     targetPos: new THREE.Vector3(tx, y, tz),
                     chaosPos: new THREE.Vector3(
@@ -343,40 +341,110 @@
                     ),
                     speed: 0.015 + Math.random() * 0.03,
                     rotationSpeed: new THREE.Vector3(Math.random(), Math.random(), Math.random()).multiplyScalar(0.03),
-                    type: rand > 0.75 ? 'elongated' : 'regular' // 标记形状类型
+                    type: rand > 0.75 ? 'elongated' : 'regular'
                 };
 
-                // 初始状态
                 mesh.position.copy(mesh.userData.targetPos);
-                
-                // 如果是糖果棍，随机旋转一下，不要都直挺挺的
                 if (mesh.userData.type === 'elongated') {
                     mesh.rotation.z = Math.random() * Math.PI;
                     mesh.rotation.x = Math.random() * Math.PI;
                 }
-
                 particles.add(mesh);
             }
             scene.add(particles);
         }
 
-        function createPhotoPlaceholders() {
+        function createPhotoGroup() {
             photoGroup = new THREE.Group();
             scene.add(photoGroup);
         }
 
-        // 处理用户上传图片
+        // 核心功能：将文字转为纹理
+        function createTextTexture(message) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 600; // 拍立得比例
+
+            // 1. 背景 (米白色)
+            ctx.fillStyle = '#fdfbf7';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. 照片区域 (黑色或深灰色背景，模拟暗部)
+            ctx.fillStyle = '#1a1a1a';
+            const margin = 30;
+            const bottomMargin = 120; // 底部留白写字
+            ctx.fillRect(margin, margin, canvas.width - margin*2, canvas.height - bottomMargin - margin);
+
+            // 3. 在照片区域写字 (金色)
+            // 使用更通用的字体组合，确保在不同系统上都能显示中文
+            ctx.font = 'bold 50px "KaiTi", "STKaiti", "Microsoft YaHei", serif';
+            ctx.fillStyle = '#FFD700';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // 处理换行
+            const lines = message.split('\n');
+            const centerX = canvas.width / 2;
+            const photoCenterY = (canvas.height - bottomMargin) / 2;
+            
+            lines.forEach((line, i) => {
+                const y = photoCenterY + (i - (lines.length-1)/2) * 60;
+                ctx.fillText(line, centerX, y);
+            });
+
+            // 4. 底部装饰 (手写签名感)
+            ctx.font = 'italic 30px "Helvetica Neue", "Arial", sans-serif';
+            ctx.fillStyle = '#555';
+            ctx.fillText("From 小韬", canvas.width - 100, canvas.height - 40);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            return texture;
+        }
+
+        function addPhotoToScene(texture) {
+            // 拍立得风格相框
+            const planeGeo = new THREE.PlaneGeometry(3, 3.5);
+            const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(planeGeo, mat);
+
+            const borderGeo = new THREE.PlaneGeometry(3.2, 4.0);
+            const borderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+            const border = new THREE.Mesh(borderGeo, borderMat);
+            border.position.z = -0.02;
+            border.position.y = -0.15;
+            mesh.add(border);
+
+            const angle = Math.random() * Math.PI * 2;
+            const y = (Math.random() * 0.8 - 0.4) * CONFIG.treeHeight; 
+            const r = ((1 - (y + CONFIG.treeHeight/2)/CONFIG.treeHeight) * CONFIG.treeRadius) + 2.0;
+            
+            mesh.userData = {
+                targetPos: new THREE.Vector3(Math.cos(angle)*r, y, Math.sin(angle)*r),
+                chaosPos: new THREE.Vector3((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*20),
+            };
+            mesh.position.copy(mesh.userData.targetPos);
+            mesh.lookAt(0, y, 0); 
+            mesh.rotateY(Math.PI); 
+
+            photoGroup.add(mesh);
+        }
+
+        // 加载预设文字卡片
+        function loadMessagesAsPhotos() {
+            MESSAGES.forEach(msg => {
+                const texture = createTextTexture(msg);
+                addPhotoToScene(texture);
+            });
+        }
+
+        // 处理用户上传 (依然保留，用于追加照片)
         document.getElementById('file-input').addEventListener('change', function(e) {
             const files = e.target.files;
             if (!files.length) return;
 
-            while(photoGroup.children.length > 0){ 
-                photoGroup.remove(photoGroup.children[0]); 
-            }
-
-            const loader = new THREE.TextureLoader();
-
-            Array.from(files).forEach((file, index) => {
+            Array.from(files).forEach((file) => {
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const img = new Image();
@@ -385,35 +453,7 @@
                         const texture = new THREE.Texture(img);
                         texture.needsUpdate = true;
                         texture.colorSpace = THREE.SRGBColorSpace;
-
-                        // 拍立得风格相框
-                        const planeGeo = new THREE.PlaneGeometry(3, 3.5);
-                        const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-                        const mesh = new THREE.Mesh(planeGeo, mat);
-
-                        const borderGeo = new THREE.PlaneGeometry(3.2, 4.0);
-                        const borderMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
-                        const border = new THREE.Mesh(borderGeo, borderMat);
-                        border.position.z = -0.02;
-                        border.position.y = -0.15;
-                        mesh.add(border);
-
-                        const count = 20;
-                        const angle = Math.random() * Math.PI * 2;
-                        // 照片随机插在树的中下部
-                        const y = (Math.random() * 0.8 - 0.4) * CONFIG.treeHeight; 
-                        // 半径稍微比树大一点
-                        const r = ((1 - (y + CONFIG.treeHeight/2)/CONFIG.treeHeight) * CONFIG.treeRadius) + 2.0;
-                        
-                        mesh.userData = {
-                            targetPos: new THREE.Vector3(Math.cos(angle)*r, y, Math.sin(angle)*r),
-                            chaosPos: new THREE.Vector3((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*20),
-                        };
-                        mesh.position.copy(mesh.userData.targetPos);
-                        mesh.lookAt(0, y, 0); 
-                        mesh.rotateY(Math.PI); 
-
-                        photoGroup.add(mesh);
+                        addPhotoToScene(texture);
                     }
                 };
                 reader.readAsDataURL(file);
@@ -429,26 +469,21 @@
 
             particles.children.forEach(mesh => {
                 let target;
-                
                 if (state === 'FORMED') {
                     target = mesh.userData.targetPos;
-                    // 自转
                     mesh.rotation.x += mesh.userData.rotationSpeed.x;
                     mesh.rotation.y += mesh.userData.rotationSpeed.y;
                 } else {
                     target = mesh.userData.chaosPos;
-                    // 散开时的漂浮感
                     target = target.clone().add(new THREE.Vector3(0, Math.sin(time + mesh.position.x)*0.3, 0));
                     mesh.rotation.x += mesh.userData.rotationSpeed.x * 3;
                     mesh.rotation.y += mesh.userData.rotationSpeed.y * 3;
                 }
-
                 mesh.position.lerp(target, mesh.userData.speed * (state === 'FORMED' ? 2.5 : 0.8));
             });
 
             photoGroup.children.forEach(photo => {
                 if (activePhoto === photo) return;
-
                 let target;
                 if (state === 'FORMED') {
                     target = photo.userData.targetPos;
@@ -462,12 +497,11 @@
                 photo.position.lerp(target, 0.04);
             });
 
-            // 交互逻辑：相机视差
+            // 相机视差
             if (state !== 'FORMED' && activePhoto === null) {
                 const targetCamX = Math.sin(handPos.x * 0.8) * CONFIG.cameraZ;
                 const targetCamZ = Math.cos(handPos.x * 0.8) * CONFIG.cameraZ;
                 const targetCamY = handPos.y * 12;
-                
                 camera.position.x += (targetCamX - camera.position.x) * 0.04;
                 camera.position.z += (targetCamZ - camera.position.z) * 0.04;
                 camera.position.y += (targetCamY - camera.position.y) * 0.04;
@@ -477,11 +511,10 @@
                 camera.lookAt(0, 0, 0);
             }
 
-            // 交互逻辑：照片抓取
+            // 抓取逻辑
             if (state === 'SCATTERED' && photoGroup.children.length > 0) {
                 raycaster.setFromCamera(handPos, camera);
                 const intersects = raycaster.intersectObjects(photoGroup.children);
-
                 if (intersects.length > 0) {
                     const hit = intersects[0].object;
                     if (isPinching && !activePhoto) {
@@ -514,7 +547,7 @@
             composer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- 4. MediaPipe Hands 集成 ---
+        // --- 4. MediaPipe Hands ---
         function initMediaPipe() {
             const videoElement = document.getElementById('video-preview');
             const statusText = document.getElementById('status-text');
