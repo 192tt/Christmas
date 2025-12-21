@@ -505,12 +505,15 @@
 
             // 相机视差
             if (state !== 'FORMED' && activePhoto === null) {
-                const targetCamX = Math.sin(handPos.x * 0.8) * CONFIG.cameraZ;
-                const targetCamZ = Math.cos(handPos.x * 0.8) * CONFIG.cameraZ;
+                // 修改：灵敏度提升到 Math.PI * 1.2 (约 216度)，允许大幅度旋转查看背面
+                const angle = handPos.x * Math.PI * 1.2;
+                const targetCamX = Math.sin(angle) * CONFIG.cameraZ;
+                const targetCamZ = Math.cos(angle) * CONFIG.cameraZ;
                 const targetCamY = handPos.y * 12;
-                camera.position.x += (targetCamX - camera.position.x) * 0.04;
-                camera.position.z += (targetCamZ - camera.position.z) * 0.04;
-                camera.position.y += (targetCamY - camera.position.y) * 0.04;
+                
+                camera.position.x += (targetCamX - camera.position.x) * 0.05;
+                camera.position.z += (targetCamZ - camera.position.z) * 0.05;
+                camera.position.y += (targetCamY - camera.position.y) * 0.05;
                 camera.lookAt(0, 0, 0);
             } else if (state === 'FORMED') {
                 camera.position.lerp(new THREE.Vector3(0, 0, CONFIG.cameraZ), 0.04);
@@ -520,9 +523,17 @@
             // 抓取逻辑
             if (state === 'SCATTERED' && photoGroup.children.length > 0) {
                 raycaster.setFromCamera(handPos, camera);
-                const intersects = raycaster.intersectObjects(photoGroup.children);
+                // 修改：开启 recursive 检测，即使点到边框也能选中
+                const intersects = raycaster.intersectObjects(photoGroup.children, true);
+                
                 if (intersects.length > 0) {
-                    const hit = intersects[0].object;
+                    let hit = intersects[0].object;
+                    
+                    // 如果点到的是子物体（边框），向上查找到照片 Mesh
+                    while(hit.parent && hit.parent !== photoGroup) {
+                        hit = hit.parent;
+                    }
+
                     if (isPinching && !activePhoto) {
                         activePhoto = hit;
                         state = 'ZOOMED';
